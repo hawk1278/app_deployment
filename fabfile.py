@@ -1,7 +1,4 @@
 #!/usr/bin/python
-"""
-Author: Rich O'Hara
-"""
 from fabric.api import *
 from fabric.colors import red, green, yellow
 from fabric.contrib.console import confirm
