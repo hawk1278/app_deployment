@@ -2,6 +2,7 @@
 """
 Test
 """
+import time
 from fabric.api import *
 from fabric.colors import green, yellow
 from fabric.contrib.files import append
@@ -16,7 +17,7 @@ from fabtools.supervisor import start_process
 from fabtools.supervisor import stop_process
 from fabtools.supervisor import reload_config
 
-
+now = time.strftime("%d%m%Y-%H%M%S", time.localtime(time.time()))
 env.roledefs = {
     "dev" :["192.168.1.48"]
 }
@@ -36,7 +37,7 @@ def clone_repo(gitrepo="https://github.com/hawk1278/router_log_parser.git"):
         if is_dir(app):
             puts(yellow("Found previous version of app."))
             puts(yellow("Archiving previous version of app."))
-            sudo("tar -czf {0}.tar.gz {1}".format(app, app))
+            sudo("tar -czf {0}-{1}.tar.gz {2}".format(app, now, app))
             sudo("rm -rf {0}".format(app))
         sudo("git clone {0}".format(gitrepo))
 
