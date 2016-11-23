@@ -3,7 +3,7 @@
 Test
 """
 from fabric.api import *
-from fabric.colors import green
+from fabric.colors import green, yellow
 from fabric.contrib.files import append
 from fabric.contrib.files import contains
 from fabric.contrib.files import upload_template
@@ -11,17 +11,10 @@ from fabric.context_managers import cd, lcd
 from fabtools.user import create, exists
 from fabtools import require
 from fabtools.python import is_installed, virtualenv, virtualenv_exists
-#from fabtools.service import *
-from fabtools.files import is_link
 from fabtools.files import is_file, is_dir
-from fabtools.cron import add_task
 from fabtools.supervisor import start_process
 from fabtools.supervisor import stop_process
 from fabtools.supervisor import reload_config
-#import boto3
-#import os
-#import sys
-import time
 
 
 env.roledefs = {
@@ -29,7 +22,6 @@ env.roledefs = {
 }
 
 # Globals
-now = time.strftime("%d%m%Y-%H:%M:%S", time.localtime(time.time()))
 app = "router_log_parser"
 app_dir = "/opt"
 user="logparser"
@@ -41,6 +33,11 @@ def clone_repo(gitrepo="https://github.com/hawk1278/router_log_parser.git"):
     clone git repo set most recent pull as current.
     """
     with cd(app_dir):
+        if is_dir(app):
+            puts(yellow("Found previous version of app."))
+            puts(yellow("Archiving previous version of app."))
+            sudo("tar -czf {0}.tar.gz {1}".format(app, app))
+            sudo("rm -rf {0}".format(app))
         sudo("git clone {0}".format(gitrepo))
 
 
@@ -63,17 +60,16 @@ def setup_app():
                 sudo("pip install -r requirements.txt",)
 
 @task
-def config_app(file_to_parse="/var/log/router.log"):
+def config_app(to_parse):
     """
     Config our application
     """
     app_venv = "{0}/{1}/{2}_env/bin/python".format(app_dir, app, app)
     app_bin = "{0}/{1}/{2}.py".format(app_dir, app, app)
-    app_command = "{0} {1} -f {2}".format(app_venv, app_bin, file_to_parse)
+    app_command = "{0} {1} -f {2}".format(app_venv, app_bin, to_parse)
     logparser_context = {
 		      "logpath": "/var/log/router_log_parser/error.log",
 		      "errorlogpath": "/var/log/router_log_parser/parser.log",
-		      "file_to_parse": file_to_parse,
               "app": app,
               "command": app_command
 		      }
@@ -108,13 +104,14 @@ def setupsupervisor():
         if not is_dir("supervisor.d"):
             puts(green("Making supervisor.d configuration directory"))
             sudo("mkdir supervisor.d")
-            sudo("chown supervisor:root supervisor.d")
-            sudo("chown supervisor:root supervisord.conf")
+        sudo("chown supervisor:root -R supervisor.d")
+        sudo("chown supervisor:root supervisord.conf")
         with cd("init.d"):
             if not is_file("supervisord"):
                 puts(green("Uploading supervisord startup script"))
                 put(local_path="files/supervisord", remote_path="/etc/init.d/supervisord", \
                 mode=0700, use_sudo=True)
+            sudo("chown supervisor:root supervisord")
         puts(green("Starting supervisord service"))
         sudo("chkconfig --add supervisord")
         sudo("chkconfig --level 3 supervisord on")
@@ -148,6 +145,14 @@ def end_process(process):
     """
     stop_process(process)
 
+@task
+def rhel_version():
+    """
+    What version of RHEL/CentOS are we dealing with?
+    """
+    result = sudo("cat /etc/redhat-release")
+    puts(green(result))
+
 
 @task
 def deploy(repo="https://github.com/hawk1278/router_log_parser.git", \
@@ -158,6 +163,6 @@ file_to_parse="/var/log/router.log"):
     clone_repo(repo)
     setupsupervisor()
     setup_app()
-    config_app()
+    config_app(file_to_parse)
     #run_app()
 
