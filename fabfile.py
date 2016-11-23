@@ -1,4 +1,5 @@
 #!/usr/bin/python
+
 from fabric.api import *
 from fabric.colors import red, green, yellow
 from fabric.contrib.console import confirm
@@ -16,7 +17,7 @@ import sys
 import time
 
 env.roledefs = {
-      "dev":["192.168.1.48"]
+    "dev" :["192.168.1.48"]
 }
 
 # Globals
